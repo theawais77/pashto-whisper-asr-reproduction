@@ -1,0 +1,28 @@
+name: pashto-whisper
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+dependencies:
+  - python=3.10.14          # paper: Python 3.10
+  - pip=24.2
+  - ffmpeg=7.0.2            # Common Voice ships MP3
+  - pytorch=2.4.1           # paper: PyTorch 2.x
+  - pytorch-cuda=12.1       # paper: CUDA 12
+  - numpy=1.26.4
+  - pandas=2.2.2
+  - matplotlib=3.9.2
+  - pyyaml=6.0.2
+  - tqdm=4.66.5
+  - libsndfile=1.2.2
+  - pip:
+      - transformers==4.44.2   # paper: >= 4.40
+      - datasets==2.21.0       # paper: >= 2.18 -- keep on 2.x, see requirements.txt
+      - accelerate==0.33.0
+      - evaluate==0.4.3
+      - jiwer==3.0.4           # paper: jiwer v3
+      - librosa==0.10.2
+      - soundfile==0.12.1
+      - tensorboard==2.17.0
+      - peft==0.12.0           # optional: LoRA ablation (paper exp_002)
+      - audiomentations==0.36.0  # optional: augmentation ablation (paper exp_008)

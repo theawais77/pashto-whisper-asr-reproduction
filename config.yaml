@@ -1,0 +1,153 @@
+# Reproduction of exp_009 from Rahman (2026), arXiv:2604.06507
+# "Fine-tuning Whisper for Pashto ASR: strategies and scale"
+#
+# Every key carries the paper's value in a comment. Where ours differs, the
+# reason is given. Do not edit a value without updating its comment --
+# the deviation table in the report is generated from these comments.
+
+seed: 42                              # paper: 42
+
+paths:
+  cv_root: data/raw/cv-corpus-24.0/ps # extracted Common Voice v24 Pashto
+  processed: data/processed
+  results: results
+  run_dir: results/${tag}             # resolved at runtime
+
+data:
+  cv_version: "24.0"
+  locale: ps
+  # Official shipped splits only. Never re-split.
+  use_official_tsv_splits: true
+  train_tsv: train.tsv
+  dev_tsv: dev.tsv
+  test_tsv: test.tsv
+
+  # Tier B (see docs/03). Paper used train+dev = 92,880 utt / 113.4 h.
+  # CHANGED: free Colab/Kaggle cannot complete 113 h within session limits.
+  train_hours: 12.0                   # paper: 113.4
+  dev_subset_rows: 1000               # paper: none held out (dev merged into train)
+  test_rows: null                     # null = full official test split (13,791)
+
+  sampling_rate: 16000                # paper: 16 kHz
+  min_duration_s: 1.0
+  max_duration_s: 30.0                # Whisper hard window
+  max_label_tokens: 448               # Whisper decoder limit
+  drop_empty_sentence: true
+  drop_non_arabic_script: true
+  dedupe_on: [client_id, sentence]
+  min_peak_amplitude: 1.0e-4
+
+  # Paper describes no Pashto-specific normalisation for the CV24 arm and
+  # applies BasicTextNormalizer only at metric time. Keep false for the main
+  # run; true is ablation E3b.
+  pashto_normalise_labels: false
+
+model:
+  name: openai/whisper-small          # paper exp_009. Fallback: openai/whisper-base (paper exp_008, 27.13% WER)
+  language: ps
+  task: transcribe
+  strategy: full                      # full | lora | frozen_encoder
+
+train:
+  learning_rate: 1.0e-5               # paper: 1.0e-4. CHANGED: 1e-4 is ~10x the HF Whisper
+                                      # reference LR; defensible at 113 h/batch 64 but overfits
+                                      # a ~12 h subset at batch 8. Ablation E3a runs 1e-4.
+  per_device_train_batch_size: 8      # paper: not stated. VRAM-bound on a 16 GB T4.
+  gradient_accumulation_steps: 4      # 8 x 4 = effective 32. Paper: effective 64.
+                                      # Use 8 for an exact effective-64 match on P100/A100.
+  per_device_eval_batch_size: 16
+  num_train_epochs: 10                # paper: max 15 (best at 5.85). Early stopping governs.
+  max_steps: -1
+  warmup_steps: 500                   # paper: NOT STATED for exp_009 (exp_010 used ratio 0.1). ASSUMED.
+  weight_decay: 0.0                   # paper: not stated for exp_009; 0.0 for exp_001. ASSUMED.
+  optim: adamw_torch                  # paper: NEVER STATED. ASSUMED (Transformers default).
+  adam_beta1: 0.9
+  adam_beta2: 0.999
+  adam_epsilon: 1.0e-8
+  max_grad_norm: 1.0                  # Transformers default. ASSUMED.
+  lr_scheduler_type: linear
+  fp16: true                          # paper: FP32. CHANGED: fp32 whisper-small at a usable
+  bf16: false                         #   batch exceeds 16 GB. Set bf16 on Ampere+ instead.
+  gradient_checkpointing: true        # paper: on
+  group_by_length: false              # off: length grouping makes batch composition data-order
+                                      #   dependent and adds run-to-run variance
+  dataloader_num_workers: 2
+  predict_with_generate: true
+  generation_max_length: 225          # paper: not stated. ASSUMED (HF Whisper default).
+  generation_num_beams: 1             # paper: not stated. ASSUMED greedy. Report whichever is used.
+
+  eval_strategy: steps
+  eval_steps: 500
+  save_strategy: steps
+  save_steps: 500                     # must equal eval_steps when load_best_model_at_end
+  save_total_limit: 2                 # Colab disk; each whisper-small checkpoint ~1 GB
+  logging_steps: 25
+  load_best_model_at_end: true
+  metric_for_best_model: wer          # paper: min normalised validation WER. NOT loss --
+                                      #   the paper's own tables show loss and WER are non-monotonic.
+  greater_is_better: false
+  early_stopping_patience: 3          # paper exp_009: 3 evaluations
+  report_to: [tensorboard]            # paper logs to TensorBoard
+
+# Ablation E3d. Paper exp_002 values, kept exact so the comparison means something.
+lora:
+  r: 64
+  alpha: 128
+  dropout: 0.1
+  target_modules: [q_proj, v_proj]    # encoder and decoder
+  # Paper result on whisper-base/CV20: 54.58% WER vs 21.22% full FT (+33.36 pp)
+
+# Ablation E3c. exp_009 itself used NO augmentation (only exp_008 on whisper-base did).
+augmentation:
+  enabled: false
+  probability: 0.7
+  speed_perturb_pct: [10, 15]
+  gaussian_noise_snr_db: 15
+  # Paper's matched comparison on whisper-base/CV24: 7.25 pp WER benefit
+
+eval:
+  metrics: [wer, cer]
+  text_normalizer: basic              # HF BasicTextNormalizer -- the paper's metric-time normaliser
+  report_orthographic: true           # paper reports both normalised and orthographic WER
+  n_repeats: 3                        # report mean +/- std
+  sample_predictions_n: 20
+  error_breakdown: true               # jiwer process_words -> S / D / I
+
+# Verified values from arXiv:2604.06507. Used only to populate the
+# "Original Paper WER" column. NEVER mixed with our measurements.
+paper_reference:
+  citation: "H. Rahman, arXiv:2604.06507, Apr. 2026, doi:10.48550/arXiv.2604.06507"
+  checkpoint: ihanif/exp_009_small_cv24_vanilla
+  exp_009_small:
+    wer_norm: 24.89
+    wer_ortho: 27.73
+    cer: 8.075
+    zeroshot_wer: 120.4
+    best_step: 8500
+    best_epoch: 5.85
+  exp_008_base:
+    wer_norm: 27.13
+    wer_ortho: 30.12
+    cer: 8.79
+    zeroshot_wer: 171.4
+  exp_010_turbo:
+    wer_norm: 23.37
+    wer_ortho: 26.77
+    cer: 7.64
+    zeroshot_wer: 110.2
+  exp_001_base_cv20:
+    wer_norm: 21.22
+    wer_ortho: 22.56
+    cer: 8.52
+  exp_002_lora_cv20:
+    wer_norm: 54.58
+  exp_003_frozen_cv20:
+    wer_norm: 35.98
+  exp_004_urdu_cv20:
+    wer_norm: 65.78
+  splits:
+    train: 79089
+    dev: 13791
+    test: 13791
+    train_plus_dev_hours: 113.4
+    test_hours: 20.7

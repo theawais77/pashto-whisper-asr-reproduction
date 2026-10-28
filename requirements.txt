@@ -1,0 +1,37 @@
+# Pinned inside the floors stated by Rahman (2026), arXiv:2604.06507:
+#   Python 3.10, PyTorch 2.x/CUDA 12, transformers >= 4.40, datasets >= 2.18,
+#   PEFT (unversioned), evaluate (unversioned), jiwer v3.
+# The paper gives floors, not pins. Floors are not reproducible, so we pin.
+
+# --- core ---
+# Install torch first, matched to your CUDA build, e.g.:
+#   pip install torch==2.4.1 --index-url https://download.pytorch.org/whl/cu121
+torch==2.4.1
+
+transformers==4.44.2
+datasets==2.21.0          # MUST stay on 2.x -- datasets 3.x removed script-based
+                          # loading and changed the Audio feature API; 3.x breaks this pipeline
+accelerate==0.33.0
+
+# --- metrics ---
+evaluate==0.4.3
+jiwer==3.0.4              # paper used jiwer v3
+
+# --- audio ---
+librosa==0.10.2
+soundfile==0.12.1
+# system dependency: ffmpeg (Common Voice ships MP3)
+
+# --- data / reporting ---
+pandas==2.2.2
+numpy==1.26.4
+pyyaml==6.0.2
+matplotlib==3.9.2
+tensorboard==2.17.0
+tqdm==4.66.5
+
+# --- optional: ablation E3d (LoRA, paper exp_002) ---
+peft==0.12.0
+
+# --- optional: ablation E3c (augmentation, paper exp_008) ---
+audiomentations==0.36.0

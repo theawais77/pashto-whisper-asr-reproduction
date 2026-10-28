@@ -1,0 +1,53 @@
+# Data — never commit the corpus. CC0 permits redistribution, but the archive
+# is far too large for Git and for GCR. README documents the official source
+# and prepare_data.py records its SHA-256.
+data/raw/
+data/processed/
+*.mp3
+*.wav
+*.flac
+*.tsv
+
+# Model weights and checkpoints (~1 GB each)
+results/*/checkpoint-*/
+results/*/best/
+*.safetensors
+*.bin
+*.pt
+*.ckpt
+
+# Keep the artefacts the report depends on
+!results/metrics.csv
+!results/comparison_table.csv
+!results/preprocessing_log.csv
+!results/dataset_stats.json
+!results/sample_predictions.csv
+!results/predictions_*.csv
+!results/*.png
+!results/*.pdf
+!results/*/training_log.csv
+!results/*/trainer_state.json
+!results/*/best_checkpoint.json
+!results/*/effective_config.yaml
+!results/*/run_meta.json
+!results/environment.txt
+!results/pip_freeze.txt
+!results/gpu.txt
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Misc
+.DS_Store
+wandb/
+.env
+
+# Word lock files
+~$*
+
+# Scratch
+*.tmp
